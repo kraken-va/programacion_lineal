@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Inecuaciones: representación gráfica paso a paso</title>
+<style>
+  :root{--bg:#0b0c10;--fg:#f5f7fb;--muted:#b9c2d0;--accent:#5aa9e6;--accent2:#9cdb97;--warn:#ff0048}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:Inter,system-ui,Arial,Helvetica,sans-serif;background:var(--bg);color:var(--fg)}
+  header{padding:16px 20px;border-bottom:1px solid #222}
+  h1{font-size:20px;margin:0}
+  main{display:grid;grid-template-columns:360px 1fr;gap:16px;min-height:calc(100vh - 70px)}
+  aside{padding:20px}
+  .card{background:#121318;border:1px solid #1e2027;border-radius:16px;padding:16px;box-shadow:0 8px 24px rgba(0,0,0,.25)}
+  .controls{display:flex;flex-direction:column;gap:12px}
+  .step{display:flex;gap:8px;align-items:flex-start;padding:10px;border-radius:12px;border:1px solid #1f222b}
+  .step input{margin-top:3px}
+  .hint{color:var(--muted);font-size:12px;margin-top:4px}
+  .legend{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+  .pill{padding:6px 10px;border-radius:999px;border:1px solid #2b2f3a;font-size:12px}
+  .pill b{font-weight:600}
+  .btns{display:flex;gap:8px;margin-top:8px}
+  button{border:1px solid #2b2f3a;background:#171922;color:var(--fg);padding:10px 12px;border-radius:12px;font-weight:600;cursor:pointer}
+  button:hover{border-color:#3a4150}
+  canvas{width:100%;height:100%;background:#0d0e13;border-left:1px solid #1e2027}
+  .canvas-wrap{padding:20px}
+  .note{font-size:13px;color:var(--muted);margin-top:10px}
+</style>
+</head>
+<body>
+  <header>
+    <h1>Representación gráfica paso a paso de un sistema de inecuaciones</h1>
+  </header>
+  <main>
+    <aside>
+      <div class="card">
+        <div class="controls">
+          <div class="step">
+            <input type="radio" name="step" id="s1" checked>
+            <label for="s1"><b>Paso 1:</b> Dibujar y sombrear <b>x ≥ −2</b> (semiplano a la derecha de la recta vertical x = −2).</label>
+          </div>
+          <div class="step">
+            <input type="radio" name="step" id="s2">
+            <label for="s2"><b>Paso 2:</b> Dibujar y sombrear <b>y ≤ 3</b> (semiplano por debajo de la recta horizontal y = 3).</label>
+          </div>
+          <div class="step">
+            <input type="radio" name="step" id="s3">
+            <label for="s3"><b>Paso 3:</b> Dibujar y sombrear <b>2x + 2y ≥ 5</b> (recta 2x+2y=5 ⇒ y = 2.5 − x y semiplano por encima).</label>
+          </div>
+          <div class="step" title="Intersección de los tres semiplanos">
+            <input type="radio" name="step" id="s4">
+            <label for="s4"><b>Paso 4:</b> Solución final (intersección). Se resalta el punto de corte (−0.5, 3).</label>
+          </div>
+          <div class="btns">
+            <button id="prev">⟵ Anterior</button>
+            <button id="next">Siguiente ⟶</button>
+          </div>
+          <div class="legend">
+            <span class="pill">Límites con <b>línea continua</b>: inecuación con ≥ o ≤</span>
+            <span class="pill">Sombreado semitransparente = región válida</span>
+          </div>
+          <p class="hint">Consejo: mueve el ratón sobre el plano para ver las coordenadas aproximadas.</p>
+        </div>
+      </div>
+      <div class="card note">
+        <b>Sistema:</b> x ≥ −2, y ≤ 3, 2x + 2y ≥ 5.
+        <br>Rectas límite: x = −2, y = 3, y = 2.5 − x.
+        <br><b>Intersección clave:</b> y=3 con y=2.5−x ⇒ x=−0.5.
+      </div>
+    </aside>
+    <section class="canvas-wrap">
+      <canvas id="plot" width="900" height="900" aria-label="Plano cartesiano"></canvas>
+    </section>
+  </main>
+<script>
+(function(){
+  const canvas = document.getElementById('plot');
+  const ctx = canvas.getContext('2d');
+
+  // Configuración del plano
+  const XMIN=-10, XMAX=10, YMIN=-10, YMAX=10; // rango visible
+  const pad = 40; // margen para ejes y etiquetas
+  const W = canvas.width, H = canvas.height;
+  const plotW = W - pad*2, plotH = H - pad*2;
+  const toPX = (x)=> pad + (x - XMIN) * (plotW/(XMAX - XMIN));
+  const toPY = (y)=> H - pad - (y - YMIN) * (plotH/(YMAX - YMIN));
+
+  // Dibujo de ejes y cuadrícula
+  function drawAxes(){
+    ctx.clearRect(0,0,W,H);
+
+    // fondo
+    ctx.fillStyle = '#0d0e13';
+    ctx.fillRect(0,0,W,H);
+
+    // cuadrícula
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = '#1a1d25';
+    ctx.beginPath();
+    for(let x=Math.ceil(XMIN); x<=XMAX; x++){
+      const X=toPX(x);
+      ctx.moveTo(X, pad);
+      ctx.lineTo(X, H-pad);
+    }
+    for(let y=Math.ceil(YMIN); y<=YMAX; y++){
+      const Y=toPY(y);
+      ctx.moveTo(pad, Y);
+      ctx.lineTo(W-pad, Y);
+    }
+    ctx.stroke();
+
+    // ejes principales
+    ctx.strokeStyle = '#2d3240';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    // eje X (y=0)
+    ctx.moveTo(pad, toPY(0));
+    ctx.lineTo(W-pad, toPY(0));
+    // eje Y (x=0)
+    ctx.moveTo(toPX(0), pad);
+    ctx.lineTo(toPX(0), H-pad);
+    ctx.stroke();
+
+    // marcas y etiquetas
+    ctx.fillStyle = '#b9c2d0';
+    ctx.font = '12px Inter, system-ui, sans-serif';
+    for(let x=Math.ceil(XMIN); x<=XMAX; x++){
+      const X=toPX(x), Y=toPY(0);
+      ctx.beginPath(); ctx.moveTo(X, Y-4); ctx.lineTo(X, Y+4); ctx.strokeStyle='#384152'; ctx.stroke();
+      if(x!==0 && x%1===0) ctx.fillText(x.toString(), X-4, H-pad+14);
+    }
+    for(let y=Math.ceil(YMIN); y<=YMAX; y++){
+      const X=toPX(0), Y=toPY(y);
+      ctx.beginPath(); ctx.moveTo(X-4, Y); ctx.lineTo(X+4, Y); ctx.strokeStyle='#384152'; ctx.stroke();
+      if(y!==0 && y%1===0) ctx.fillText(y.toString(), pad-24, Y+4);
+    }
+
+    // marco
+    ctx.strokeStyle = '#1e2027';
+    ctx.strokeRect(pad, pad, plotW, plotH);
+  }
+
+  // Sombrear semiplano usando un gran polígono recortado
+  function shadeHalfPlane(drawBoundary, isInside){
+    // Recorrer píxeles a un paso para sombrear rápido (bloques)
+    const step = 4; // mayor = más rápido
+    ctx.save();
+    ctx.globalAlpha = 0.32;
+    ctx.fillStyle = '#5aa9e6';
+    for(let i=pad; i<=W-pad; i+=step){
+      for(let j=pad; j<=H-pad; j+=step){
+        const x = XMIN + (i-pad)*(XMAX-XMIN)/plotW;
+        const y = YMIN + (H-pad-j)*(YMAX-YMIN)/plotH;
+        if(isInside(x,y)) ctx.fillRect(i, j, step, step);
+      }
+    }
+    ctx.restore();
+
+    // Límite
+    ctx.save();
+    ctx.strokeStyle = '#9cdb97';
+    ctx.lineWidth = 2.5;
+    drawBoundary();
+    ctx.restore();
+  }
+
+  // Dibuja la solución final superponiendo y remarcando contornos
+  function drawSolution(){
+    // solo colorear la intersección final
+    const step = 2;
+    ctx.save();
+    ctx.globalAlpha = 0.5;
+    ctx.fillStyle = '#ff0048';
+    for(let i=pad; i<=W-pad; i+=step){
+      for(let j=pad; j<=H-pad; j+=step){
+        const x = XMIN + (i-pad)*(XMAX-XMIN)/plotW;
+        const y = YMIN + (H-pad-j)*(YMAX-YMIN)/plotH;
+        if(x>=-2 && y<=3 && 2*x+2*y>=5) ctx.fillRect(i, j, step, step);
+      }
+    }
+    ctx.restore();
+
+    // Resaltar líneas y el punto (-0.5, 3)
+    ctx.save();
+    ctx.strokeStyle = '#9cdb97';
+    ctx.lineWidth = 3.2;
+    drawLineX(-2); drawLineY(3); drawLineOblique();
+
+    const px = toPX(-0.5), py = toPY(3);
+    ctx.fillStyle = '#ff0048';
+    ctx.beginPath(); ctx.arc(px, py, 5, 0, Math.PI*2); ctx.fill();
+    ctx.font = '12px Inter'; ctx.fillText('(-0.5, 3)', px+8, py-8);
+    ctx.restore();
+  }
+
+  function drawLineX(xc){
+    ctx.beginPath();
+    const X = toPX(xc);
+    ctx.moveTo(X, pad);
+    ctx.lineTo(X, H-pad);
+    ctx.stroke();
+  }
+  function drawLineY(yc){
+    ctx.beginPath();
+    const Y = toPY(yc);
+    ctx.moveTo(pad, Y);
+    ctx.lineTo(W-pad, Y);
+    ctx.stroke();
+  }
+  function drawLineOblique(){
+    // y = 2.5 - x  ⇒ puntos extremos dentro del marco
+    const x1 = XMIN, y1 = 2.5 - x1;
+    const x2 = XMAX, y2 = 2.5 - x2;
+    const X1 = toPX(x1), Y1 = toPY(y1);
+    const X2 = toPX(x2), Y2 = toPY(y2);
+    ctx.beginPath();
+    ctx.moveTo(X1, Y1);
+    ctx.lineTo(X2, Y2);
+    ctx.stroke();
+  }
+
+  function render(step){
+    drawAxes();
+    if(step===1){
+      shadeHalfPlane(()=>drawLineX(-2), (x,y)=> x >= -2);
+    } else if(step===2){
+      shadeHalfPlane(()=>drawLineY(3), (x,y)=> y <= 3);
+    } else if(step===3){
+      shadeHalfPlane(()=>drawLineOblique(), (x,y)=> 2*x + 2*y >= 5);
+    } else if(step===4){
+      drawSolution();
+    }
+  }
+
+  // Interacción paso a paso
+  const radios = [document.getElementById('s1'),document.getElementById('s2'),document.getElementById('s3'),document.getElementById('s4')];
+  function currentStep(){ return radios.findIndex(r=>r.checked)+1; }
+  radios.forEach((r,i)=> r.addEventListener('change',()=>render(i+1)));
+  document.getElementById('prev').addEventListener('click',()=>{ const s=Math.max(1,currentStep()-1); radios[s-1].checked=true; render(s); });
+  document.getElementById('next').addEventListener('click',()=>{ const s=Math.min(4,currentStep()+1); radios[s-1].checked=true; render(s); });
+
+  // Tooltip de coordenadas
+  canvas.addEventListener('mousemove', (e)=>{
+    const rect = canvas.getBoundingClientRect();
+    const i = (e.clientX - rect.left) * (W/rect.width);
+    const j = (e.clientY - rect.top)  * (H/rect.height);
+    const x = XMIN + (i-pad)*(XMAX-XMIN)/plotW;
+    const y = YMIN + (H-pad-j)*(YMAX-YMIN)/plotH;
+    // Redibujar escena actual
+    render(currentStep());
+    // Mostrar etiqueta pequeña
+    if(i>pad && i<W-pad && j>pad && j<H-pad){
+      ctx.save();
+      const label = `(${x.toFixed(2)}, ${y.toFixed(2)})`;
+      const tx = Math.min(W-pad-80, Math.max(pad, i+12));
+      const ty = Math.max(pad+20, j-12);
+      ctx.fillStyle = 'rgba(0,0,0,.55)';
+      ctx.fillRect(tx-6, ty-16, ctx.measureText(label).width+18, 24);
+      ctx.strokeStyle = '#2b2f3a'; ctx.strokeRect(tx-6, ty-16, ctx.measureText(label).width+18, 24);
+      ctx.fillStyle = '#dbe2ef'; ctx.font='12px Inter'; ctx.fillText(label, tx, ty);
+      ctx.restore();
+    }
+  });
+
+  // Primer render
+  render(1);
+})();
+</script>
+</body>
+</html>
